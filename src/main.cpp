@@ -3,7 +3,6 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include <optional>
 
 #include "tokenizer.hpp"
 
@@ -27,6 +26,9 @@ int main(int argc, char* argv[]) {
     contents = contents_stream.str();
 
  }
+
+ tokenizer tk(contents);
+ std::vector<token> tokens = tk.tokenize();
 
 
 
