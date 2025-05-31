@@ -20,6 +20,7 @@ enum class tokenType{
 struct token{
 tokenType type;
 std::optional<std::string> value;
+std::optional<int> line;
 
 };
 
@@ -38,6 +39,10 @@ public:
         while (i < n) {
             char c = m_str[i];
 
+            if (c == '\n'){
+                m_line++;
+            }
+
             if(std::isspace(static_cast<unsigned char>(c))){
                 i++;
                 continue;
@@ -53,19 +58,19 @@ public:
                 }
 
                 static const std::unordered_set<std::string> keywords = {
-                    "int", "str", "char", "double", "float", "arr"
+                    "int", "str", "char", "double", "float", "arr", "for", "while", "if", "else"
 
                 };
 
                 //keywords
                 if(keywords.count(buf)){
-                    tokens.push_back({tokenType::keyword, buf});
+                    tokens.push_back({tokenType::keyword, buf, m_line});
 
                 }
                 
                 //identifiers
                 else{
-                    tokens.push_back({tokenType::identifier, buf});
+                    tokens.push_back({tokenType::identifier, buf, m_line});
 
                 }
                 continue;
@@ -79,20 +84,20 @@ public:
                     num.push_back(m_str[i]);
                     i++;
                 }
-                tokens.push_back({tokenType::constant, num});
+                tokens.push_back({tokenType::constant, num, m_line});
                 continue;
             }
 
             //operators
             if(std::string("+-*/%=<>").find(c) != std::string::npos){
-                tokens.push_back({tokenType::op, std::string(1, c)}); 
+                tokens.push_back({tokenType::op, std::string(1, c), m_line}); 
                 i++;
                 continue;
             }
 
             //punctuators
-            if(std::string("\"'_(){}[]:;").find(c) != std::string::npos){
-                tokens.push_back({tokenType::punctuator, std::string(1, c)});
+            if(std::string("'_(){}[]:;").find(c) != std::string::npos){
+                tokens.push_back({tokenType::punctuator, std::string(1, c), m_line});
                 i++;
                 continue;
 
@@ -105,7 +110,7 @@ public:
                 str_lit.push_back(m_str[i]); 
                 i++;
 
-                while (i < n){
+                while (i < n ){
                     char c = m_str[i];
 
                     if (c == '\\'){
@@ -131,7 +136,7 @@ public:
                         i++;
                     }
                 }
-                tokens.push_back({tokenType::literal, str_lit});
+                tokens.push_back({tokenType::literal, str_lit, m_line});
                 continue;
 
             }
@@ -150,5 +155,5 @@ private:
 
 const std::string m_str;
 int m_index = 0;
-
+int m_line = 1;
 };

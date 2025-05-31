@@ -32,11 +32,35 @@ int main(int argc, char* argv[]) {
 
 
 
-//output to assembly file
-//std::ofstream output_file(filename);
-//output_file <<//asm generation ;
-//output_file.close();
+  //output to assembly file
+  //std::ofstream output_file(filename);
+  //output_file <<//asm generation ;
+  //output_file.close();
 
-//return EXIT_SUCCESS;
+  //return EXIT_SUCCESS;
 
+
+  //test code
+ for (const auto& t : tokens) {
+        std::cout << "Token Type: ";
+        switch (t.type) {
+            case tokenType::identifier: std::cout << "identifier"; break;
+            case tokenType::keyword: std::cout << "keyword"; break;
+            case tokenType::punctuator: std::cout << "punctuator"; break;
+            case tokenType::op: std::cout << "operator"; break;
+            case tokenType::literal: std::cout << "literal"; break;
+            case tokenType::constant: std::cout << "constant"; break;
+        }
+
+        if (t.value) {
+            std::cout << ", Value: " << *t.value;
+            
+        }
+        if(t.line){
+          std::cout << ", Line:" << *t.line;
+        }
+
+        std::cout << '\n';
+    }
+    return 0;
 }
