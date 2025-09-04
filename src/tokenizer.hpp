@@ -9,11 +9,13 @@
 
 enum class tokenType{
    identifier,
-   keyword,
+   type_keyword,
+   op_keyword,
    punctuator,
    op,
    literal,
-   constant
+   constant,
+   newline
 
 };
 
@@ -40,7 +42,10 @@ public:
             char c = m_str[i];
 
             if (c == '\n'){
+                tokens.push_back({tokenType::newline, "\\n"});
                 m_line++;
+                i++;
+                continue;
             }
 
             if(std::isspace(static_cast<unsigned char>(c))){
@@ -57,17 +62,29 @@ public:
                     i++;
                 }
 
-                static const std::unordered_set<std::string> keywords = {
-                    "int", "str", "char", "double", "float", "arr", "for", "while", "if", "else"
+                static const std::unordered_set<std::string> type_keywords = {
+                    "int", "str", "char", "double", "float", "arr"
 
                 };
+                static const std::unordered_set<std::string> op_keywords = {
+                    "for", "while", "if", "else"
 
+                };
                 //keywords
-                if(keywords.count(buf)){
-                    tokens.push_back({tokenType::keyword, buf, m_line});
+                if(type_keywords.count(buf)){
+                    tokens.push_back({tokenType::type_keyword, buf, m_line});
 
                 }
-                
+                else{
+                    tokens.push_back({tokenType::identifier, buf, m_line});
+
+                }
+                continue;
+
+                if(op_keywords.count(buf)){
+                    tokens.push_back({tokenType::op_keyword, buf, m_line});
+
+                }
                 //identifiers
                 else{
                     tokens.push_back({tokenType::identifier, buf, m_line});
@@ -89,14 +106,14 @@ public:
             }
 
             //operators
-            if(std::string("+-*/%=<>").find(c) != std::string::npos){
+            if(std::string("+-*/%=<>^").find(c) != std::string::npos){
                 tokens.push_back({tokenType::op, std::string(1, c), m_line}); 
                 i++;
                 continue;
             }
 
             //punctuators
-            if(std::string("'_(){}[]:;").find(c) != std::string::npos){
+            if(std::string("!#$&'(){}[];:?-_,.~|@`").find(c) != std::string::npos){
                 tokens.push_back({tokenType::punctuator, std::string(1, c), m_line});
                 i++;
                 continue;

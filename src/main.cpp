@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "tokenizer.hpp"
+#include "parser.hpp"
 
 
 int main(int argc, char* argv[]) {
@@ -15,8 +16,8 @@ int main(int argc, char* argv[]) {
     
     return EXIT_FAILURE;
   }
-  std::cout << "enter a file name: ";
-  std::cin >> filename;
+  //std::cout << "enter a file name: ";
+  //std::cin >> filename;
 
   //read contents of program file
     std::string contents; {
@@ -30,7 +31,7 @@ int main(int argc, char* argv[]) {
  tokenizer tk(contents);
  std::vector<token> tokens = tk.tokenize();
 
-
+ 
 
   //output to assembly file
   //std::ofstream output_file(filename);
@@ -41,26 +42,31 @@ int main(int argc, char* argv[]) {
 
 
   //test code
- for (const auto& t : tokens) {
-        std::cout << "Token Type: ";
-        switch (t.type) {
-            case tokenType::identifier: std::cout << "identifier"; break;
-            case tokenType::keyword: std::cout << "keyword"; break;
-            case tokenType::punctuator: std::cout << "punctuator"; break;
-            case tokenType::op: std::cout << "operator"; break;
-            case tokenType::literal: std::cout << "literal"; break;
-            case tokenType::constant: std::cout << "constant"; break;
-        }
+  for (const auto& t : tokens) {
+          std::cout << "Token Type: ";
+         switch (t.type) {
+              case tokenType::identifier: std::cout << "identifier"; break;
+              case tokenType::type_keyword: std::cout << "type_keyword"; break;
+              case tokenType::op_keyword: std::cout << "op_keyword"; break;
+              case tokenType::punctuator: std::cout << "punctuator"; break;
+              case tokenType::op: std::cout << "operator"; break;
+              case tokenType::literal: std::cout << "literal"; break;
+              case tokenType::constant: std::cout << "constant"; break;
+              case tokenType::newline: std::cout << "newline"; break;
+          }
 
-        if (t.value) {
-            std::cout << ", Value: " << *t.value;
-            
-        }
-        if(t.line){
-          std::cout << ", Line:" << *t.line;
-        }
+          if (t.value) {
+              std::cout << ", Value: " << *t.value;
+              
+          }
+          if(t.line){
+            std::cout << ", Line:" << *t.line;
+          }
 
-        std::cout << '\n';
-    }
-    return 0;
+          std::cout << '\n';
+      }
+
+      parser p(tokens);
+
+  return 0;
 }
