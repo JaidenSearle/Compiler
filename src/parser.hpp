@@ -26,9 +26,7 @@ void parse_program()
             std::cout << " >>> error while parsing" << std::endl;
             i++;
         }
-        
-            
-        
+         
     }
 
 }
@@ -62,7 +60,6 @@ bool parse_declaration(size_t& i){
      {
         std::cout << " >>> variable declarations must be initilized with a value" << std::endl;
         return false;
-
      }
      i++;
 
