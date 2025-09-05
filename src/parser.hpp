@@ -9,17 +9,29 @@
 class parser{
     
 public:
-inline explicit parser(std::vector<token> tokens) : m_tokens(std::move(tokens)) {
-    for(size_t i = 0; i < m_tokens.size();){
-        if(!parse_declaration(i))
-        {
-            std::cout << " >>> error while parsing" << std::endl;
-            break;
-        }
-    }
-    
-}
+inline explicit parser(std::vector<token> tokens) : m_tokens(std::move(tokens)) {}
 
+void parse_program()
+{
+    size_t i = 0;
+    while(i < m_tokens.size())
+    {
+        if(m_tokens[i].type == tokenType::newline)
+        {
+            i++;
+            continue;
+        }
+        else if(!parse_declaration(i))
+        {
+            std::cout << " >>> bad token" << std::endl;
+            i++;
+        }
+        
+            
+        
+    }
+
+}
 
 private:
 

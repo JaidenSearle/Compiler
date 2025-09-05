@@ -67,6 +67,7 @@ int main(int argc, char* argv[]) {
       }
 
       parser p(tokens);
-
+      p.parse_program();
+      
   return 0;
 }

@@ -42,7 +42,7 @@ public:
             char c = m_str[i];
 
             if (c == '\n'){
-                tokens.push_back({tokenType::newline, "\\n"});
+                tokens.push_back({tokenType::newline, "\\n", m_line});
                 m_line++;
                 i++;
                 continue;
@@ -163,6 +163,12 @@ public:
                 std::exit(EXIT_FAILURE);
             }
             
+        }
+
+        if(i = n)
+        {
+            tokens.push_back({tokenType::newline, "\\n", m_line});
+
         }
         return tokens;
 
