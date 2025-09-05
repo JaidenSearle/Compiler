@@ -23,7 +23,7 @@ void parse_program()
         }
         else if(!parse_declaration(i))
         {
-            std::cout << " >>> bad token" << std::endl;
+            std::cout << " >>> error while parsing" << std::endl;
             i++;
         }
         
@@ -69,7 +69,7 @@ bool parse_declaration(size_t& i){
      if( i >= m_tokens.size() || m_tokens[i].type != tokenType::newline)
      {
 
-        std::cout << " >>> cannot have declarations on the same line" << std::endl;
+        std::cout << " >>> cannot have declarations on the same line" <<  std::endl;
         
      }
      i++;
