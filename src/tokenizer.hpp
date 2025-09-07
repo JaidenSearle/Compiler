@@ -63,7 +63,7 @@ public:
                 }
 
                 static const std::unordered_set<std::string> type_keywords = {
-                    "int", "str", "char", "double", "float", "arr"
+                    "int", "str", "char", "double", "float","arr"
 
                 };
                 static const std::unordered_set<std::string> op_keywords = {

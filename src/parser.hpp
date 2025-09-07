@@ -33,43 +33,93 @@ void parse_program()
 
 private:
 
-bool parse_declaration(size_t& i){
-        
+bool parse_declaration(size_t& i){ 
     if(i >= m_tokens.size() || m_tokens[i].type != tokenType::type_keyword)
     {
         std::cout << " >>> expected a type identifier before variable declaration" << std::endl;
         return false;
     }
-    i++;
 
-    if(i >= m_tokens.size() || m_tokens[i].type != tokenType::identifier)
-    {
-        std::cout << " >>> expected an identifier" << std::endl;
-        return false;
+    else if(m_tokens[i].value == "int" || m_tokens[i].value == "str"){
+        i++;
+
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::identifier)
+        {
+            std::cout << " >>> expected an identifier" << std::endl;
+            return false;
+        }
+        i++;
+
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::op)
+        {
+            std::cout <<" >>> expected an '=' after variable declaration" << std::endl;
+            return false;
+        }
+        i++;
+
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::identifier && m_tokens[i].type != tokenType::literal && m_tokens[i].type != tokenType::constant)
+        {
+            std::cout << " >>> variable declarations must be initilized with a value" << std::endl;
+            return false;
+        }
+        i++;
+
+        if( i >= m_tokens.size() || m_tokens[i].type != tokenType::newline)
+        {
+
+            std::cout << " >>> cannot have declarations on the same line" <<  std::endl;
+            return false;
+            
+        }
+        i++;
     }
-    i++;
 
-     if(i >= m_tokens.size() || m_tokens[i].type != tokenType::op)
-     {
-        std::cout <<" >>> expected an '=' after variable declaration" << std::endl;
-        return false;
-     }
-     i++;
+    else if (m_tokens[i].value == "double" || m_tokens[i].value == "float")
+    {
+        i++;
 
-     if(i >= m_tokens.size() || m_tokens[i].type != tokenType::identifier && m_tokens[i].type != tokenType::literal && m_tokens[i].type != tokenType::constant)
-     {
-        std::cout << " >>> variable declarations must be initilized with a value" << std::endl;
-        return false;
-     }
-     i++;
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::identifier)
+        {
+            std::cout << " >>> expected an identifier" << std::endl;
+            return false;
+        }
+        i++;
 
-     if( i >= m_tokens.size() || m_tokens[i].type != tokenType::newline)
-     {
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::op)
+        {
+            std::cout <<" >>> expected an '=' after variable declaration" << std::endl;
+            return false;
+        }
+        i++;
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::constant)
+        {
+            std::cout << "expected a value" << std::endl;
+            return false;
+        }
+        i++;
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::punctuator)
+        {
+            std::cout << "value mismatch floats and doubles must not be a whole number" << std::endl;
+            return false;
 
-        std::cout << " >>> cannot have declarations on the same line" <<  std::endl;
+        }
+        i++;
+        if(i >= m_tokens.size() || m_tokens[i].type != tokenType::constant)
+        {
+            std::cout << "expected a value after the decimal" << std::endl;
+            return false;
+
+        }
+        i++;
+
+    }
+
+    else if(m_tokens[i].value == "arr")
+    {
+        i++;
         
-     }
-     i++;
+
+    }
 
      std::cout << " >>> parse sucessful" << std::endl;
      return true;
