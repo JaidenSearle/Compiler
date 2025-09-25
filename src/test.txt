@@ -4,3 +4,5 @@ int x = 0
 str z = "hi"
 double y = 2.11
 float w = 2.1
+
+ 5 * 2 + 3
