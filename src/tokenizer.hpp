@@ -23,7 +23,7 @@ enum class tokenType
 struct token
 {
 tokenType type;
-std::optional<std::string> value;
+std::string value;
 std::optional<int> line;
 
 };
@@ -109,15 +109,22 @@ public:
             }
 
             //constant
-            if(std::isdigit(static_cast<unsigned char>(c)))
+            if (std::isdigit(static_cast<unsigned char>(c)))
             {
                 std::string num;
+                bool hasDecimal = false;
 
-                while(i < n && std::isdigit(static_cast<unsigned char>(m_str[i])))
+                // Collect digits and at most one decimal point
+                while (i < n && (std::isdigit(static_cast<unsigned char>(m_str[i])) || (!hasDecimal && m_str[i] == '.')))
                 {
+                    if (m_str[i] == '.')
+                    {
+                        hasDecimal = true; // allow only one '.'
+                    }
                     num.push_back(m_str[i]);
                     i++;
                 }
+
                 tokens.push_back({tokenType::constant, num, m_line});
                 continue;
             }

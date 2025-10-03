@@ -6,11 +6,56 @@
 
 #include "tokenizer.hpp"
 #include "parser.hpp"
+void printAST(const ASTNode* node, int depth = 0) 
+{
+    std::string indent(depth * 2, ' ');
 
+    auto nodeTypeToStr = [](NodeType t) 
+    {
+        switch (t) 
+        {
+            case NodeType::Program: return "Program";
+            case NodeType::Declaration: return "Declaration";
+            case NodeType::Identifier: return "Identifier";
+            case NodeType::BinOp: return "BinOp";
+            case NodeType::Constant: return "Constant";
+            case NodeType::Literal: return "Literal";
+            case NodeType::newline: return "Newline";
+            case NodeType::punctuator: return "Punctuator";
+        }
+        return "Unknown";
+    };
 
-int main(int argc, char* argv[]) {
+    std::cout << indent << nodeTypeToStr(node->type);
+    if (!node->value.empty()) {
+        std::cout << " (" << node->value << ")";
+    }
+    std::cout << "\n";
+
+    for (auto* child : node->children) {
+        printAST(child, depth + 1);
+    }
+}
+
+//Test function
+void testAST(const std::string& contents) 
+{
+
+    // Get tokens from tokenizer
+    tokenizer tk(contents);
+    std::vector<token> tokens = tk.tokenize();
+
+    parser p(tokens);
+    ASTNode* root = p.parse_program();
+
+    printAST(root);
+}
+
+int main(int argc, char* argv[]) 
+{
   std::string filename;
-  if(argc != 2){
+  if(argc != 2)
+  {
 
     std::cerr << "incorrect usage, use ./main <file path> instead." << std::endl;
     
@@ -42,32 +87,6 @@ int main(int argc, char* argv[]) {
 
 
   //test code
-  for (const auto& t : tokens) {
-          std::cout << "Token Type: ";
-         switch (t.type) {
-              case tokenType::identifier: std::cout << "identifier"; break;
-              case tokenType::type_keyword: std::cout << "type_keyword"; break;
-              case tokenType::op_keyword: std::cout << "op_keyword"; break;
-              case tokenType::punctuator: std::cout << "punctuator"; break;
-              case tokenType::op: std::cout << "operator"; break;
-              case tokenType::literal: std::cout << "literal"; break;
-              case tokenType::constant: std::cout << "constant"; break;
-              case tokenType::newline: std::cout << "newline"; break;
-          }
-
-          if (t.value) {
-              std::cout << ", Value: " << *t.value;
-              
-          }
-          if(t.line){
-            std::cout << ", Line:" << *t.line;
-          }
-
-          std::cout << '\n';
-      }
-
-      parser p(tokens);
-      p.parse_program();
-      
+  testAST(contents);
   return 0;
 }
