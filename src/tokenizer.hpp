@@ -33,7 +33,7 @@ class tokenizer
 
 public:
 
-    inline tokenizer(const std::string& str) : m_str(str) {}
+    inline tokenizer(const std::string &str) : m_str(str) {}
 
 
     inline std::vector<token> tokenize()
@@ -65,7 +65,7 @@ public:
             {
             std::string buf;
 
-                while (i < n && (std::isalnum(static_cast<unsigned char>(m_str[i])) || m_str[i] == '_'))
+                while (i < n && (std::isalnum(static_cast<unsigned char>(m_str[i])) || m_str[i] == '_' || m_str[i] == '[' || m_str[i] == ']'))
                 {
                     buf.push_back(m_str[i]);
                     i++;
@@ -73,7 +73,7 @@ public:
 
                 static const std::unordered_set<std::string> type_keywords = 
                 {
-                    "int", "str", "char", "double", "float","arr"
+                    "int", "str", "char", "double", "float","int[]","str[]","char[]","double[]","float[]"
 
                 };
                 static const std::unordered_set<std::string> op_keywords = 
@@ -192,7 +192,8 @@ public:
 
             }
 
-        else{
+            else
+            {
                 std::cerr << "error: unknown character '" << c << "' at position " << i << "\n";
                 std::exit(EXIT_FAILURE);
             }

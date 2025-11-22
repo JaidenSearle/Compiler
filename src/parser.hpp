@@ -7,7 +7,8 @@
 enum class NodeType
 {
 Program, 
-Declaration, 
+Declaration,
+Expression, 
 Identifier, 
 BinOp, 
 Constant,
@@ -25,7 +26,7 @@ std::vector<ASTNode*> children;
 
 
 };
-ASTNode* MakeNode(NodeType type, const std::string &value = "")
+ASTNode *MakeNode(NodeType type, const std::string &value = "")
 {
 return new ASTNode{type, value, {}};
 
@@ -37,10 +38,10 @@ class parser{
 public:
 inline explicit parser(std::vector<token> tokens) : m_tokens(std::move(tokens)) {}
 
-ASTNode* parse_program()
+ASTNode *parse_program()
 
 {
-ASTNode* root = MakeNode(NodeType::Program);
+ASTNode *root = MakeNode(NodeType::Program);
 
     size_t i = 0;
     while(i < m_tokens.size())
@@ -69,14 +70,14 @@ ASTNode* root = MakeNode(NodeType::Program);
 
 private:
 
-    ASTNode* parse_declaration(size_t& i)
+    ASTNode *parse_declaration(size_t& i)
     { 
         if(i >= m_tokens.size() || m_tokens[i].type != tokenType::type_keyword)
         {
             std::cout << " >>> expected a type identifier before variable declaration" << std::endl;
             return nullptr;
         }
-        ASTNode* declNode = MakeNode(NodeType::Declaration, m_tokens[i].value);
+        ASTNode *declNode = MakeNode(NodeType::Declaration, m_tokens[i].value);
         i++;
 
         
@@ -86,7 +87,7 @@ private:
                 return nullptr;
             }
             //build node if identifier is found
-            ASTNode* identNode = MakeNode(NodeType::Identifier, m_tokens[i].value);
+            ASTNode *identNode = MakeNode(NodeType::Identifier, m_tokens[i].value);
             i++;
         
             if(i >= m_tokens.size() || m_tokens[i].type != tokenType::op)
@@ -95,7 +96,7 @@ private:
                 return nullptr;
             }
             //build node if operator is found
-            ASTNode* opNode = MakeNode(NodeType::BinOp, m_tokens[i].value);
+            ASTNode *opNode = MakeNode(NodeType::BinOp, m_tokens[i].value);
             i++;
             
             if(i >= m_tokens.size() || m_tokens[i].type != tokenType::identifier && m_tokens[i].type != tokenType::literal && m_tokens[i].type != tokenType::constant)
@@ -105,7 +106,7 @@ private:
             }
             //build node if variable is initilized with a literal
            
-            ASTNode* valNode = MakeNode(NodeType::Literal, m_tokens[i].value);
+            ASTNode *valNode = MakeNode(NodeType::Literal, m_tokens[i].value);
             i++;
             
         //build tree
@@ -133,12 +134,16 @@ private:
     }
 
 
-    ASTNode* parse_expression(size_t& i)
+    ASTNode *parse_expression(size_t& i)
     {
+        //TODO add recursive descent parsing for expressions
 
 
+
+
+        
     }
     const std::vector<token> m_tokens;
     size_t m_index = 0;
 
-};
+}; 
