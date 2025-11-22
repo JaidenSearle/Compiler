@@ -1,5 +1,5 @@
 # Compiler
-  A simple compiler for a custom language being developed alongside of the compiler development. 
+  A simple compiler for a custom language being developed alongside of the compiler development (to be named in the future). 
 
 ## Overview
 - Compiles source code to ARM64 assembly
