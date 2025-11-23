@@ -2,7 +2,7 @@
   A simple compiler for a custom language being developed alongside of the compiler development (to be named in the future). 
 
 ## Overview
-- Compiles source code to ARM64 assembly
+- Compiles source code to ARMv8 A64 assembly
 - Targeted for Linux based systems
 - Will  have similar syntax to C and Python (No semicolons, uses brackets for function scopes rather than tabs)
 ## Features
