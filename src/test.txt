@@ -1,7 +1,1 @@
-
-int x = 0
-str z = "hi"
-float y = 2.1
-double w = 2.133433432
-
-int[] x = []
+2 * 3

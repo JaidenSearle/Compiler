@@ -38,14 +38,10 @@ void printAST(const ASTNode* node, int depth = 0)
 }
 
 //Test function
-void testAST(const std::string& contents) 
+void testAST(const std::vector<token>& contents) 
 {
 
-    // Get tokens from tokenizer
-    tokenizer tk(contents);
-    std::vector<token> tokens = tk.tokenize();
-
-    parser p(tokens);
+    parser p(contents);
     ASTNode* root = p.parse_program();
 
     printAST(root);
@@ -70,13 +66,12 @@ int main(int argc, char* argv[])
     std::fstream input(argv[1],std::ios::in);
     contents_stream << input.rdbuf();
     contents = contents_stream.str();
-
  }
 
  tokenizer tk(contents);
  std::vector<token> tokens = tk.tokenize();
 
- 
+  //output to assembly file
 
   //output to assembly file
   //std::ofstream output_file(filename);
@@ -87,6 +82,6 @@ int main(int argc, char* argv[])
 
 
   //test code
-  testAST(contents);
+  testAST(tokens);
   return 0;
 }

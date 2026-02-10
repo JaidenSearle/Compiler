@@ -12,7 +12,9 @@ enum class tokenType
    identifier,
    type_keyword,
    op_keyword,
-   punctuator,
+    punctuator,
+    lparen,
+    rparen,
    op,
    literal,
    constant,
@@ -129,6 +131,21 @@ public:
                 continue;
             }
 
+            //parentheses
+            if (c == '(')
+            {
+                tokens.push_back({tokenType::lparen, std::string(1, c), m_line});
+                i++;
+                continue;
+            }
+
+            if (c == ')')
+            {
+                tokens.push_back({tokenType::rparen, std::string(1, c), m_line});
+                i++;
+                continue;
+            }
+
             //operators
             if(std::string("+-*/%=<>^").find(c) != std::string::npos)
             {
@@ -138,7 +155,7 @@ public:
             }
 
             //punctuators
-            if(std::string("!#$&'(){}[];:?-_,.~|@`").find(c) != std::string::npos)
+            if(std::string("!#$&'{}[];:?-_,.~|@`").find(c) != std::string::npos)
             {
                 tokens.push_back({tokenType::punctuator, std::string(1, c), m_line});
                 i++;

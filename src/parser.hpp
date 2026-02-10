@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 #include "tokenizer.hpp"
 
 enum class NodeType
@@ -39,9 +40,9 @@ public:
 inline explicit parser(std::vector<token> tokens) : m_tokens(std::move(tokens)) {}
 
 ASTNode *parse_program()
-
 {
-ASTNode *root = MakeNode(NodeType::Program);
+
+    ASTNode *root = MakeNode(NodeType::Program);
 
     size_t i = 0;
     while(i < m_tokens.size())
@@ -51,19 +52,33 @@ ASTNode *root = MakeNode(NodeType::Program);
             i++;
             continue;
         }
-
-        ASTNode* decl = parse_declaration(i);
-        if(decl)
+        
+        if(m_tokens[i].type == tokenType::type_keyword)
         {
-            root -> children.push_back(decl);
-
+            ASTNode *decl = parse_declaration(i);
+            if(decl)
+            {
+                root -> children.push_back(decl);
+            }
+            else
+            {
+                std::cout << " >>> error while parsing" << std::endl;
+                i++;
+            }
         }
         else
         {
-            std::cout << " >>> error while parsing" << std::endl;
-            i++;
+            ASTNode *expr = parse_expr(i);
+            if(expr)
+            {
+                root -> children.push_back(expr);
+            }
+            else
+            {
+                std::cout << " >>> error while parsing" << std::endl;
+                i++;
+            }
         }
-         
     }
     return root;
 }
@@ -104,9 +119,9 @@ private:
                 std::cout << " >>> variable declarations must be initilized with a value" << std::endl;
                 return nullptr;
             }
-            //build node if variable is initilized with a literal
+            //build node if variable is initilized with a constant
            
-            ASTNode *valNode = MakeNode(NodeType::Literal, m_tokens[i].value);
+            ASTNode *valNode = MakeNode(NodeType::Constant, m_tokens[i].value);
             i++;
             
         //build tree
@@ -133,16 +148,121 @@ private:
         return declNode;
     }
 
-
-    ASTNode *parse_expression(size_t& i)
+ //TODO add recursive descent parsing for expressions
+   
+    //non-terminal functions
+    ASTNode *parse_expr(size_t& i)
     {
-        //TODO add recursive descent parsing for expressions
+       if(i >= m_tokens.size()) return nullptr;
 
+       ASTNode *left = parse_term(i);
+       if(!left) return nullptr;
 
+       while(i < m_tokens.size() && (m_tokens[i].value == "+" || m_tokens[i].value == "-"))
+       {
+           std::string op = m_tokens[i].value;
+           i++;
+           ASTNode *right = parse_term(i);
+           if(!right)
+           {
+               std::cout << " >>> expected expression after operator" << std::endl;
+               return nullptr;
+           }
+           ASTNode *opNode = MakeNode(NodeType::BinOp, op);
+           opNode->children.push_back(left);
+           opNode->children.push_back(right);
+           left = opNode;
+       }
 
-
-        
+        return left;
     }
+    
+    ASTNode *parse_term(size_t& i)
+    {
+        if(i >= m_tokens.size()) return nullptr;
+
+        ASTNode *left = parse_factor(i);
+        if(!left) return nullptr;
+
+        auto startsFactor = [&](size_t idx)->bool 
+        {
+            if(idx >= m_tokens.size()) return false;
+            if(m_tokens[idx].type == tokenType::lparen) return true;
+            if(m_tokens[idx].type == tokenType::constant) return true;
+            if(m_tokens[idx].type == tokenType::identifier) return true;
+            if(m_tokens[idx].type == tokenType::literal) return true;
+            return false;
+        };
+
+        while(i < m_tokens.size())
+        {
+            std::string op;
+            if(m_tokens[i].value == "*" || m_tokens[i].value == "/")
+            {
+                op = m_tokens[i].value;
+                i++; 
+            }
+            else if(startsFactor(i))
+            {
+              
+                op = "*";
+            }
+            else
+            {
+                break;
+            }
+
+            ASTNode *right = parse_factor(i);
+            if(!right)
+            {
+                std::cout << " >>> expected expression after operator" << std::endl;
+                return nullptr;
+            }
+            ASTNode *opNode = MakeNode(NodeType::BinOp, op);
+            opNode->children.push_back(left);
+            opNode->children.push_back(right);
+            left = opNode;
+        }
+
+        return left;
+    }
+   
+    ASTNode *parse_factor(size_t& i)
+    {
+        if(i >= m_tokens.size()) return nullptr;
+
+        if(m_tokens[i].type == tokenType::constant) 
+        {
+            ASTNode *valNode = MakeNode(NodeType::Constant, m_tokens[i].value);
+            i++;
+            return valNode;
+        }
+         if(m_tokens[i].type == tokenType::identifier)
+        {
+            ASTNode *valNode = MakeNode(NodeType::Identifier, m_tokens[i].value);
+            i++;
+            return valNode;
+        }
+
+        if(m_tokens[i].type == tokenType::lparen)
+        {
+            i++; 
+            ASTNode *node = parse_expr(i);
+            
+            if(!node) return nullptr;
+            if(i >= m_tokens.size() || m_tokens[i].type != tokenType::rparen)
+            {
+                std::cout << " >>> expected ')'" << std::endl;
+                return nullptr;
+            }
+            i++; 
+            return node;
+        }
+
+        return nullptr;
+
+    }
+        
     const std::vector<token> m_tokens;
     size_t m_index = 0;
 
