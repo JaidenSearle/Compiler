@@ -32,6 +32,8 @@ parser.hpp
 
 test.txt (Source code file to be compiled)
 ## Usage
+* (important)Must be compiled and ran on linux based x86-64 systems for the time being as the assembly generation creates linux syscalls
+
 project compiles with g++:
 ```bash
 g++ --std=c++20 main.cpp -o program_name
