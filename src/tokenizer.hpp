@@ -11,6 +11,7 @@ enum class tokenType {
   identifier,
   type_keyword,
   op_keyword,
+  return_keyword,
   punctuator,
   lparen,
   rparen,
@@ -74,17 +75,13 @@ class tokenizer {
         if (type_keywords.count(buf)) {
           tokens.push_back({tokenType::type_keyword, buf, m_line});
 
-        } else {
-          tokens.push_back({tokenType::identifier, buf, m_line});
-        }
-        continue;
+        } else if (buf == "return") {
+          tokens.push_back({tokenType::return_keyword, buf, m_line});
 
-        if (op_keywords.count(buf)) {
+        } else if (op_keywords.count(buf)) {
           tokens.push_back({tokenType::op_keyword, buf, m_line});
 
-        }
-        // identifiers
-        else {
+        } else {
           tokens.push_back({tokenType::identifier, buf, m_line});
         }
         continue;

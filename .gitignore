@@ -5,4 +5,4 @@ main.exe
 test_output
 test
 compile
-
+*.o

@@ -3,7 +3,7 @@
 The project focuses on learning and implementing core compiler concepts, from lexical analysis through code generation.
 ## Overview
 This compiler:
-- Compiles source code to **ARM64 assembly**
+- Compiles source code to **X86_64 assembly**
 - Targets **Linux-based systems**
 - Uses a C/Python–inspired syntax:
   - No semicolons
@@ -16,7 +16,7 @@ This compiler:
   - LL(1) grammar
   - Hand-written recursive descent parser
 - **Abstract Syntax Tree (AST) generation**
-  - Clean AST representation for expressions and declarations
+  - AST representation for expressions and declarations
 - **Operator precedence**
   - Correct handling of `+ - * /`
   - Supports implicit multiplication in expressions
@@ -32,9 +32,9 @@ parser.hpp
 
 test.txt (Source code file to be compiled)
 ## Usage
-project compiles with gcc:
+project compiles with g++:
 ```bash
-gcc main.cpp -o program_name
+g++ --std=c++20 main.cpp -o program_name
 ```
 to run compiler:
 ```bash

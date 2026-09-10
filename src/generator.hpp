@@ -4,13 +4,21 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "parser.hpp"
+#include "symbol_table.hpp"
 
 // Target: Linux x86_64 (GNU `as` AT&T syntax), raw syscalls, `_start` entry.
 // No libc is used, so the resulting object can be linked with just `ld`.
+//
+// Assumes the AST it's given has already been checked by semantic_analyzer,
+// and takes the SymbolTable that analyzer built as a constructor argument.
+// Variable offsets and string-ness are looked up from that table rather
+// than recomputed here, and none of the type/redeclaration/undeclared-
+// identifier checks that used to live in this file are repeated - a
+// generator error below signals a broken internal invariant (e.g. this AST
+// was never run through semantic_analyzer), not a bad user program.
 //
 // Runtime model
 // -------------
@@ -26,13 +34,18 @@
 //   native `push`/`pop` on %rsp as a small operand stack, and if variable
 //   offsets were relative to %rsp instead, they'd be corrupted every time an
 //   expression pushed or popped a temporary.
-// - A top-level expression statement (e.g. `x + y * 2` on its own line)
-//   evaluates to a value in %rax and the program exits immediately with
-//   that value as its exit code (`exit` syscall, number 60). Since this
-//   halts the program, anything after the first expression statement is
+// - A `return <expr>` statement evaluates the expression and prints its
+//   decimal value to stdout (with a trailing newline), then the program
+//   exits with status 0 (`exit` syscall, number 60). A bare `return` just
+//   exits with status 0 without printing anything. Either form halts the
+//   program immediately, so anything after the first return statement is
 //   unreachable - that's a property of the language having no control flow,
-//   not a bug here. If the AST never contains an expression statement,
-//   execution falls off the end into a final `exit(0)`.
+//   not a bug here. If the AST never contains a return statement, execution
+//   falls off the end into a final `exit(0)`.
+// - A bare expression statement (e.g. `x + y * 2` on its own line, with no
+//   `return`) is still legal - it's evaluated for any side effects and its
+//   result is discarded. It has no effect on the program's output or exit
+//   status; use `return` to actually surface a value.
 //
 // Type support
 // ------------
@@ -45,7 +58,8 @@
 //   address (computed RIP-relative via `lea`, so this works whether the
 //   binary ends up PIE or not). String variables can be declared but are
 //   rejected if you try to use one inside an arithmetic expression - there's
-//   no string operator support (concatenation, printing, etc.) yet.
+//   no string operator support (concatenation, printing, etc.) yet, and
+//   `return` only knows how to print integers.
 // - "float" / "double": not implemented. x86_64 floating-point work belongs
 //   in the SSE registers (movsd/addsd/etc, or an encodable-immediate check
 //   plus a literal pool), and the tokenizer doesn't distinguish "3" from
@@ -55,20 +69,21 @@
 
 class generator {
  public:
-  inline explicit generator(ASTNode* root) : m_root(root) {}
+  inline generator(ASTNode* root, SymbolTable symbols)
+      : m_root(root), m_symbols(std::move(symbols)) {}
 
   inline std::string generate() {
     // Generate the body first; this is what discovers every declared
-    // variable (and therefore the final frame size) and every string
-    // literal (the .rodata contents). The prologue that depends on the
-    // frame size is prepended afterwards.
+    // variable (and therefore the final frame size), every string
+    // literal (the .rodata contents), and whether the print-integer
+    // helper is needed at all.
     for (ASTNode* stmt : m_root->children) {
       gen_statement(stmt);
     }
 
     // Fallback: if control fell off the end of the program without ever
-    // hitting an expression statement, exit cleanly with status 0.
-    m_body << "    # implicit exit if no expression statement ran\n";
+    // hitting a return statement, exit cleanly with status 0.
+    m_body << "    # implicit exit if no return statement ran\n";
     emit_exit_immediate(0);
 
     std::ostringstream out;
@@ -83,13 +98,19 @@ class generator {
     out << ".section .text\n";
     out << "_start:\n";
 
-    int frame_size = align16(m_stack_size);
+    int frame_size = align16(m_symbols.total_size);
     if (frame_size > 0) {
       out << "    sub $" << frame_size << ", %rsp\n";
       out << "    mov %rsp, %rbp    # %rbp = stable frame base for locals\n";
     }
 
     out << m_body.str();
+
+    // print_int is only emitted (and only takes up space in the binary) if
+    // some `return <expr>` actually needed it.
+    if (m_needs_print_int) {
+      out << "\n" << print_int_subroutine();
+    }
 
     // Marks the stack as non-executable so the linker doesn't default to an
     // executable stack (and warn about it) just because this object never
@@ -100,12 +121,7 @@ class generator {
   }
 
  private:
-  struct VarInfo {
-    int offset;
-    bool isString;
-  };
-
-  // ---- statement-level codegen ----
+  //statement-level codegen
 
   void gen_statement(ASTNode* stmt) {
     if (!stmt) return;
@@ -115,16 +131,20 @@ class generator {
       return;
     }
 
+    if (stmt->type == NodeType::Return) {
+      gen_return(stmt);
+      return;
+    }
+
     if (stmt->type == NodeType::Expression) {
       if (stmt->children.empty()) {
         fail("empty expression statement");
       }
       gen_expr(stmt->children[0]);
-      pop("%rax");  // final expression value
-      m_body << "    # expression statement -> exit(%rax)\n";
-      m_body << "    mov %rax, %rdi\n";
-      m_body << "    mov $60, %rax\n";
-      m_body << "    syscall\n";
+      pop("%rax");  // value isn't surfaced anywhere; only side effects (if
+                    // any existed) would matter here
+      m_body << "    # expression statement (value discarded, use 'return' "
+                "to print a value)\n";
       return;
     }
 
@@ -143,69 +163,60 @@ class generator {
     ASTNode* valNode = eq->children[1];
     const std::string& name = identNode->value;
 
-    if (m_vars.count(name)) {
-      fail("redeclaration of variable '" + name + "'");
-    }
-
-    bool isStringType =
-        (typeName == "str" || typeName == "str[]" || typeName == "char[]");
-    if (typeName == "float" || typeName == "double" ||
-        typeName == "float[]" || typeName == "double[]") {
-      fail("type '" + typeName + "' is not supported by codegen yet");
-    }
-
-    int offset = m_stack_size;
-    m_stack_size += 8;
-    m_vars[name] = {offset, isStringType};
+    // semantic_analyzer already validated this declaration and assigned it
+    // a slot; look it up rather than recomputing anything.
+    const SymbolInfo& info = lookup(name);
 
     m_body << "    # " << typeName << " " << name << " = " << valNode->value
            << "\n";
 
-    if (isStringType) {
-      if (!is_string_literal(valNode->value)) {
-        fail("'" + name + "' must be initialized with a string literal");
-      }
+    if (info.isString) {
+      // Guaranteed by semantic_analyzer to be a string literal.
       std::string label = "str_" + std::to_string(m_string_count++);
       m_rodata << "    " << label << ": .asciz " << valNode->value << "\n";
       m_body << "    lea " << label << "(%rip), %rax\n";
-      m_body << "    mov %rax, " << offset << "(%rbp)\n";
+      m_body << "    mov %rax, " << info.offset << "(%rbp)\n";
       return;
     }
 
     if (is_numeric_literal(valNode->value)) {
-      if (valNode->value.find('.') != std::string::npos) {
-        fail("floating point literal '" + valNode->value +
-             "' not supported yet");
-      }
       m_body << "    movabs $" << valNode->value << ", %rax\n";
     } else if (is_string_literal(valNode->value)) {
-      // Only meaningful for `char c = "a"` — take the first character's
-      // ASCII value. Multi-character strings assigned to a scalar type
-      // are rejected rather than silently truncated.
-      if (typeName != "char" || valNode->value.size() < 3) {
-        fail("type '" + typeName +
-             "' cannot be initialized with a string literal");
-      }
+      // Only reachable for `char c = "a"` - semantic_analyzer already
+      // confirmed it's a single-character literal on a 'char' variable.
       unsigned char c = static_cast<unsigned char>(valNode->value[1]);
       m_body << "    mov $" << static_cast<int>(c) << ", %rax\n";
     } else {
-      // Identifier reference: copy an existing variable's value.
-      auto it = m_vars.find(valNode->value);
-      if (it == m_vars.end()) {
-        fail("unknown identifier '" + valNode->value + "'");
-      }
-      if (it->second.isString) {
-        fail("cannot initialize '" + name + "' from string variable '" +
-             valNode->value + "'");
-      }
-      m_body << "    mov " << it->second.offset << "(%rbp), %rax\n";
+      // Identifier reference - semantic_analyzer already confirmed it's
+      // declared and type-compatible.
+      const SymbolInfo& src = lookup(valNode->value);
+      m_body << "    mov " << src.offset << "(%rbp), %rax\n";
     }
 
-    m_body << "    mov %rax, " << offset << "(%rbp)\n";
+    m_body << "    mov %rax, " << info.offset << "(%rbp)\n";
   }
 
-  // ---- expression codegen (leaves result on the %rsp-based operand stack)
-  // ----
+  // `return` evaluate the (optional) expression, print it as a decimal
+  // integer followed by a newline, then exit(0). A bare `return` skips
+  // straight to exit(0). Either way this halts the program, matching the
+  // parser's `Return → "return" [ Expr ] Newline` grammar.
+  void gen_return(ASTNode* ret) {
+    if (ret->children.empty()) {
+      m_body << "    # return (no value)\n";
+      emit_exit_immediate(0);
+      return;
+    }
+
+    gen_expr(ret->children[0]);
+    pop("%rax");  // value to print
+
+    m_body << "    # return statement -> print value, exit(0)\n";
+    m_body << "    call print_int\n";
+    emit_exit_immediate(0);
+    m_needs_print_int = true;
+  }
+
+  //expression codegen (leaves result on the %rsp-based operand stack)
 
   void gen_expr(ASTNode* node) {
     if (!node) fail("null expression node");
@@ -221,16 +232,10 @@ class generator {
         return;
       }
       case NodeType::Identifier: {
-        auto it = m_vars.find(node->value);
-        if (it == m_vars.end()) {
-          fail("unknown identifier '" + node->value + "'");
-        }
-        if (it->second.isString) {
-          fail("'" + node->value +
-               "' is a string and can't be used in an arithmetic "
-               "expression");
-        }
-        m_body << "    mov " << it->second.offset << "(%rbp), %rax\n";
+        // semantic_analyzer already confirmed this identifier is declared
+        // and non-string wherever it appears in an arithmetic expression.
+        const SymbolInfo& info = lookup(node->value);
+        m_body << "    mov " << info.offset << "(%rbp), %rax\n";
         push("%rax");
         return;
       }
@@ -263,7 +268,7 @@ class generator {
     }
   }
 
-  // ---- small helpers ----
+  //helpers
 
   void push(const std::string& reg) { m_body << "    push " << reg << "\n"; }
 
@@ -273,6 +278,93 @@ class generator {
     m_body << "    mov $" << code << ", %rdi\n";
     m_body << "    mov $60, %rax\n";
     m_body << "    syscall\n";
+  }
+
+  // Every call site here is only reachable for a name semantic_analyzer
+  // already resolved, so a miss means this AST/table pair is mismatched -
+  // an internal error, not a normal compile error.
+  const SymbolInfo& lookup(const std::string& name) {
+    auto it = m_symbols.symbols.find(name);
+    if (it == m_symbols.symbols.end()) {
+      fail("internal error: '" + name +
+           "' missing from symbol table - was semantic_analyzer run on "
+           "this AST first?");
+    }
+    return it->second;
+  }
+
+  // Emitted once (only when a `return <expr>` was actually generated) after
+  // the fallback exit, so control can never fall into it by accident - every
+  // path that reaches it does so via an explicit `call print_int`.
+  //
+  // Contract: %rax holds a signed 64-bit value on entry. Writes its decimal
+  // representation followed by '\n' to stdout (fd 1). Clobbers %rax, %rbx,
+  // %rdx, %rsi, %rdi, %rcx, %r11 (the last two per the `syscall`
+  // calling convention) and restores everything else it touches.
+  static std::string print_int_subroutine() {
+    return
+        "print_int:\n"
+        "    push %rbx\n"
+        "    push %r12\n"
+        "    push %r13\n"
+        "    push %r14\n"
+        "    sub $32, %rsp          # scratch buffer for up to 20 digits + "
+        "sign\n"
+        "\n"
+        "    mov %rax, %r12         # r12 = remaining value\n"
+        "    xor %r13, %r13         # r13 = 1 if negative, else 0\n"
+        "    cmp $0, %r12\n"
+        "    jge 1f\n"
+        "    mov $1, %r13\n"
+        "    neg %r12\n"
+        "1:\n"
+        "    lea 32(%rsp), %r14     # r14 = write cursor, starts past the "
+        "buffer end\n"
+        "    mov $10, %rbx\n"
+        "    cmp $0, %r12\n"
+        "    jne 3f\n"
+        "    dec %r14\n"
+        "    movb $'0', (%r14)      # value was exactly 0\n"
+        "    jmp 5f\n"
+        "3:\n"
+        "2:\n"
+        "    cmp $0, %r12\n"
+        "    je 5f\n"
+        "    xor %rdx, %rdx\n"
+        "    mov %r12, %rax\n"
+        "    div %rbx               # %rax = quotient, %rdx = remainder\n"
+        "    add $'0', %dl\n"
+        "    dec %r14\n"
+        "    mov %dl, (%r14)\n"
+        "    mov %rax, %r12\n"
+        "    jmp 2b\n"
+        "5:\n"
+        "    cmp $1, %r13\n"
+        "    jne 4f\n"
+        "    dec %r14\n"
+        "    movb $'-', (%r14)\n"
+        "4:\n"
+        "    lea 32(%rsp), %rax\n"
+        "    sub %r14, %rax         # length = end - cursor\n"
+        "    mov %rax, %rdx\n"
+        "    mov %r14, %rsi\n"
+        "    mov $1, %rdi           # fd = stdout\n"
+        "    mov $1, %rax           # syscall write\n"
+        "    syscall\n"
+        "\n"
+        "    movb $'\\n', 31(%rsp)\n"
+        "    lea 31(%rsp), %rsi\n"
+        "    mov $1, %rdx\n"
+        "    mov $1, %rdi\n"
+        "    mov $1, %rax\n"
+        "    syscall\n"
+        "\n"
+        "    add $32, %rsp\n"
+        "    pop %r14\n"
+        "    pop %r13\n"
+        "    pop %r12\n"
+        "    pop %rbx\n"
+        "    ret\n";
   }
 
   static bool is_numeric_literal(const std::string& v) {
@@ -299,9 +391,9 @@ class generator {
   }
 
   ASTNode* m_root;
-  std::unordered_map<std::string, VarInfo> m_vars;
+  SymbolTable m_symbols;
   std::ostringstream m_body;
   std::ostringstream m_rodata;
-  int m_stack_size = 0;
   int m_string_count = 0;
+  bool m_needs_print_int = false;
 };

@@ -14,6 +14,7 @@ enum class NodeType {
   BinOp,
   Constant,
   Literal,
+  Return,
   punctuator,
   newline
 
@@ -47,6 +48,14 @@ class parser {
         ASTNode* decl = parse_declaration(i);
         if (decl) {
           root->children.push_back(decl);
+        } else {
+          std::cout << " >>> error while parsing" << std::endl;
+          i++;
+        }
+      } else if (m_tokens[i].type == tokenType::return_keyword) {
+        ASTNode* ret = parse_return(i);
+        if (ret) {
+          root->children.push_back(ret);
         } else {
           std::cout << " >>> error while parsing" << std::endl;
           i++;
@@ -120,7 +129,37 @@ class parser {
     return declNode;
   }
 
-  // TODO add recursive descent parsing for expressions
+  // Return → "return" [ Expr ] Newline
+  ASTNode* parse_return(size_t& i) {
+    if (i >= m_tokens.size() || m_tokens[i].type != tokenType::return_keyword) {
+      std::cout << " >>> expected 'return' keyword" << std::endl;
+      return nullptr;
+    }
+    ASTNode* returnNode = MakeNode(NodeType::Return);
+    i++;
+
+    // bare `return` with no value, immediately followed by a newline
+    if (i < m_tokens.size() && m_tokens[i].type == tokenType::newline) {
+      std::cout << " >>> parse sucessful" << std::endl;
+      return returnNode;
+    }
+
+    ASTNode* expr = parse_expr(i);
+    if (!expr) {
+      std::cout << " >>> expected an expression after 'return'" << std::endl;
+      return nullptr;
+    }
+    returnNode->children.push_back(expr);
+
+    if (i >= m_tokens.size() || m_tokens[i].type != tokenType::newline) {
+      std::cout << " >>> cannot have statements on the same line as 'return'"
+                << std::endl;
+      return nullptr;
+    }
+
+    std::cout << " >>> parse sucessful" << std::endl;
+    return returnNode;
+  }
 
   // non-terminal functions
   ASTNode* parse_expr(size_t& i) {
