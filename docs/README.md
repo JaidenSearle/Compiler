@@ -40,7 +40,7 @@ g++ --std=c++20 main.cpp -o program_name
 ```
 to run compiler:
 ```bash
-./main source_file.txt
+./program_name source_file.txt
 ```
 Note: This is an early-stage project; a build system (e.g. Makefile or CMake) may be added later.
  # Grammar
